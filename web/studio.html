@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>岗位系统</title>
+  <style>
+    :root {
+      --bg: #090807;
+      --card: #12100c;
+      --card-2: #1b1812;
+      --ink: #f6f0e4;
+      --muted: #b5a48a;
+      --line: rgba(212, 175, 95, 0.34);
+      --gold: #e2c27a;
+      --gold-deep: #b8893e;
+      --gold-soft: rgba(226, 194, 122, 0.12);
+      --danger: #e7a08a;
+      --serif: "Palatino Linotype", "Songti SC", "STSong", "SimSun", serif;
+      --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at 12% 0%, rgba(226, 194, 122, 0.16), transparent 28rem),
+        linear-gradient(180deg, #100e0b 0%, var(--bg) 16rem);
+      color-scheme: dark;
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    a { color: var(--gold); }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .wrap { width: min(1220px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 72px; }
+    header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-end; margin-bottom: 18px; }
+    .brand { display: flex; gap: 16px; align-items: center; }
+    .seal {
+      width: 58px; height: 58px; display: grid; place-items: center;
+      border: 1px solid var(--gold); color: var(--gold);
+      font-family: var(--serif); font-size: 28px;
+      box-shadow: inset 0 0 0 4px #090807, inset 0 0 0 5px var(--gold-deep);
+    }
+    h1 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 40px; letter-spacing: 0.08em; }
+    .brand p, .kicker { margin: 4px 0 0; color: var(--muted); letter-spacing: 0.18em; font-size: 12px; text-transform: uppercase; }
+    .nav { display: flex; gap: 8px; margin: 0 0 18px; }
+    .nav button, .home-card {
+      border: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left;
+    }
+    .nav button { border-radius: 999px; padding: 8px 16px; letter-spacing: 0.08em; }
+    .nav button[aria-pressed="true"] {
+      background: linear-gradient(180deg, #f3ddaa, #c89a45); color: #1a1408; border-color: #f3ddaa;
+    }
+    .home-grid { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 16px; }
+    .home-card { width: 100%; border-radius: 16px; padding: 22px; background: var(--card); cursor: pointer; }
+    .home-card.static { cursor: default; }
+    .home-card .history { margin: 0; }
+    .system-note { margin: 16px 0 0; }
+    .home-card h2, .chat-top h2 { margin: 6px 0 8px; font-family: var(--serif); font-weight: 500; font-size: 32px; }
+    .home-side { display: grid; gap: 12px; }
+    .chat-shell {
+      min-height: 74vh; display: flex; flex-direction: column;
+      border: 1px solid var(--line); background: var(--card); padding: 22px;
+    }
+    .chat-top, .chat-form { display: flex; justify-content: space-between; gap: 12px; align-items: end; }
+    .chat-thread { flex: 1; overflow: auto; max-height: 58vh; display: flex; flex-direction: column; gap: 12px; padding: 8px 0 16px; }
+    .bubble { max-width: min(760px, 86%); padding: 12px 14px; line-height: 1.7; white-space: pre-wrap; }
+    .bubble.user { align-self: flex-end; color: #1a1408; background: linear-gradient(180deg, #f3ddaa, #c89a45); }
+    .bubble.assistant { align-self: flex-start; border: 1px solid var(--line); background: #0d0c0a; }
+    .chat-tools { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; }
+    .chat-form { margin-top: auto; }
+    .chat-form textarea { min-height: 64px; }
+    .chat-form .primary { width: auto; min-width: 108px; }
+    .suggest { display: flex; flex-wrap: wrap; gap: 8px; }
+    .history { display: flex; flex-wrap: wrap; gap: 8px; min-height: 0; margin-bottom: 18px; }
+    .history:empty { display: none; }
+    .history button, .chip, .track, .ghost, .text-btn, .tab {
+      border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px;
+    }
+    .history button { padding: 6px 10px; color: var(--gold); }
+    .layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 18px; align-items: start; }
+    .desk, .stage {
+      background: linear-gradient(180deg, rgba(226, 194, 122, 0.05), transparent 80px), var(--card);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+    .desk { padding: 22px; position: sticky; top: 14px; }
+    .stage { min-height: 740px; padding: 26px; }
+    .step { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 10px; }
+    .step span { color: var(--gold); font-family: var(--serif); letter-spacing: 0.16em; }
+    .step strong { font-size: 16px; font-weight: 600; }
+    .block { margin-bottom: 22px; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    .chips, .tracks, .checks { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip, .track { padding: 7px 11px; }
+    .chip[aria-pressed="true"], .track[aria-pressed="true"], .tab[aria-pressed="true"] {
+      background: linear-gradient(180deg, #f3ddaa, #c89a45);
+      color: #1a1408; border-color: #f3ddaa;
+    }
+    .track { width: 100%; border-radius: 12px; text-align: left; padding: 12px 14px; }
+    .track b { display: block; }
+    .track small { color: inherit; opacity: 0.72; }
+    input[type="text"], input[type="search"], select, textarea {
+      width: 100%; border: 1px solid var(--line); background: #0d0c0a; border-radius: 10px; padding: 10px 12px;
+    }
+    textarea { min-height: 132px; resize: vertical; line-height: 1.6; }
+    .ghost, .text-btn, .tab { padding: 8px 12px; border-radius: 10px; }
+    .ghost { white-space: nowrap; }
+    .primary {
+      width: 100%; border: 0; border-radius: 12px; padding: 14px 16px; font-size: 16px;
+      background: linear-gradient(180deg, #f3ddaa, #c89a45); color: #1a1408; font-weight: 700;
+    }
+    .primary:disabled { opacity: 0.45; cursor: wait; }
+    .drop { border: 1px dashed var(--gold-deep); border-radius: 12px; padding: 14px; text-align: center; background: var(--gold-soft); }
+    .drop.over { border-color: var(--gold); background: rgba(226, 194, 122, 0.2); }
+    .meta, .hint, .note { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .meta { display: flex; justify-content: space-between; margin-top: 6px; }
+    .warn { color: var(--danger); min-height: 1.2em; font-size: 13px; }
+    .meter { height: 6px; background: #2a2418; border-radius: 99px; overflow: hidden; margin: 10px 0; }
+    .meter span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8c6a2f, #f3ddaa); }
+    .check { border-radius: 99px; padding: 4px 8px; font-size: 12px; color: var(--muted); border: 1px solid #3a3224; }
+    .check.on { color: #1a1408; background: var(--gold); border-color: var(--gold); }
+    .empty { max-width: 520px; padding-top: 36px; }
+    .empty h2, .hero h2, #runningTitle, #failed h2 { font-family: var(--serif); font-weight: 500; letter-spacing: 0.04em; }
+    .empty h2 { font-size: 44px; line-height: 1.15; margin: 0 0 12px; }
+    .points { display: grid; gap: 12px; margin-top: 28px; }
+    .points div { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; }
+    .points b { color: var(--gold); font-family: var(--serif); font-size: 22px; }
+    .status-line, .result-bar, .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .log { list-style: none; padding: 0; margin: 18px 0 0; }
+    .log li { padding: 10px 0 10px 14px; border-top: 1px solid var(--line); position: relative; }
+    .log li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); position: absolute; left: 0; top: 16px; }
+    .hero { display: grid; grid-template-columns: 150px 1fr; gap: 22px; align-items: center; margin-top: 18px; }
+    .ring {
+      width: 136px; height: 136px; border-radius: 50%; display: grid; place-items: center;
+      background: conic-gradient(var(--tone, var(--gold)) calc(var(--p) * 1%), #2a2418 0);
+    }
+    .ring span {
+      width: 98px; height: 98px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--card); font-family: var(--serif); font-size: 38px; color: var(--gold);
+    }
+    .hero h2 { margin: 0 0 8px; font-size: 32px; line-height: 1.25; }
+    .lede { margin: 0; line-height: 1.7; }
+    .signals, .bands { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .signals span, .band { border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; background: var(--card-2); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .panel, .job, .draft pre { background: var(--card-2); border: 1px solid var(--line); }
+    .panel { padding: 14px 16px; }
+    .panel h3, .jobs h3, .plan h3 { margin: 0 0 10px; font-family: var(--serif); font-weight: 500; }
+    .panel ul, .plan { margin: 0; padding-left: 18px; }
+    .panel li, .plan li { margin: 7px 0; line-height: 1.55; }
+    .toolbar { align-items: end; margin: 8px 0 12px; }
+    .toolbar label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; min-width: 0; }
+    .job { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 14px; margin-top: 10px; }
+    .score { font-family: var(--serif); font-size: 30px; color: var(--gold); }
+    .job h4 { margin: 0 0 4px; font-size: 18px; }
+    .job p { margin: 6px 0; line-height: 1.6; }
+    .job .sub { color: var(--muted); font-size: 13px; }
+    .job-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .star[aria-pressed="true"] { color: #1a1408; background: var(--gold); }
+    .compare { margin-top: 12px; }
+    .compare table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .compare th, .compare td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
+    .draft pre { white-space: pre-wrap; padding: 16px; line-height: 1.7; font-family: var(--sans); }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .hidden { display: none; }
+    @media (max-width: 960px) {
+      .layout, .hero, .split, .result-bar, .toolbar, .home-grid, .chat-form { grid-template-columns: 1fr; display: grid; }
+      .desk { position: static; }
+      h1, .empty h2 { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="seal">岗</div>
+        <div>
+          <h1>岗位系统</h1>
+          <p class="kicker">Home · Desk · Talk</p>
+        </div>
+      </div>
+      <nav class="nav" id="nav">
+        <button type="button" data-view="home" aria-pressed="true">首页</button>
+        <button type="button" data-view="desk" aria-pressed="false">投递台</button>
+        <button type="button" data-view="chat" aria-pressed="false">对话</button>
+      </nav>
+    </header>
+    <section id="view-home" class="view">
+      <div class="home-grid">
+        <button class="home-card" type="button" data-view="desk">
+          <p class="kicker">Desk</p>
+          <h2>投递台</h2>
+          <p class="note">按城市和方向筛选公开职位，对照简历给出匹配估计、缺口和准备计划。</p>
+        </button>
+        <div class="home-side">
+          <button class="home-card" type="button" data-view="chat">
+            <p class="kicker">Talk</p>
+            <h2>对话</h2>
+            <p class="note">直接问岗位、城市和简历怎么改。可以随时回到投递台。</p>
+          </button>
+          <div class="home-card static">
+            <p class="kicker">Recent</p>
+            <h2>最近分析</h2>
+            <div class="history" id="history"></div>
+            <p class="note" id="historyEmpty">还没有分析记录。</p>
+          </div>
+        </div>
+      </div>
+      <p class="note system-note">本地系统。简历只留在这台浏览器。首页、投递台和对话可以来回切换。系统不会登录招聘网站，也不会代为提交。</p>
+    </section>
+    <section id="view-desk" class="view hidden">
+    <div class="layout">
+      <form class="desk" id="desk">
+        <div class="block">
+          <p class="step"><span>01</span><strong>城市</strong><em id="cityCount">0 / 8</em></p>
+          <div class="chips" id="cities"></div>
+          <div class="row">
+            <input id="cityInput" type="text" maxlength="40" placeholder="其他城市，回车添加" />
+            <button class="ghost" id="addCity" type="button">添加</button>
+          </div>
+          <div class="row">
+            <button class="text-btn" id="tier1" type="button">一线城市</button>
+            <button class="text-btn" id="clearCities" type="button">清空</button>
+          </div>
+        </div>
+        <div class="block">
+          <p class="step"><span>02</span><strong>方向</strong></p>
+          <div class="tracks" id="tracks"></div>
+        </div>
+        <div class="block">
+          <p class="step"><span>03</span><strong>简历</strong></p>
+          <div class="drop" id="drop">
+            <strong>放下 .txt 或 .md</strong>
+            <div class="row">
+              <input id="file" type="file" accept=".txt,.md,.markdown,text/plain" />
+            </div>
+          </div>
+          <textarea id="resume" placeholder="粘贴简历。经历、项目、技能和时间都以这里为准。"></textarea>
+          <div class="meter" aria-hidden="true"><span id="meterBar"></span></div>
+          <div class="checks" id="checks"></div>
+          <div class="meta"><span id="resumeName">尚未放入简历</span><span id="resumeCount">0 / 12000</span></div>
+          <div class="row">
+            <button class="text-btn" id="clearResume" type="button">清空简历</button>
+          </div>
+          <p class="hint">匹配只使用你放进来的经历。示例简历不能开始分析。</p>
+        </div>
+        <div class="block">
+          <label class="hint" for="limit">最多保留几条公开职位
+            <select id="limit">
+              <option value="5">5</option>
+              <option value="8" selected>8</option>
+            </select>
+          </label>
+        </div>
+        <p class="warn" id="formWarn"></p>
+        <button class="primary" id="go" type="submit">开始分析</button>
+      </form>
+      <section class="stage" id="stage" aria-live="polite">
+        <div id="empty" class="empty">
+          <p class="kicker">Black · Gold</p>
+          <h2>先圈定城市，再让简历说话。</h2>
+          <p class="note">投递台检索公开职位，给出匹配估计、缺口和准备计划。它不登录招聘网站，也不替你提交。</p>
+          <div class="points">
+            <div><b>01</b><span>每条职位都带来源链接，方便你自己打开核对。</span></div>
+            <div><b>02</b><span>分数是贴合程度，不是录取概率。</span></div>
+            <div><b>03</b><span>准备计划只写简历里已经有的事实。</span></div>
+          </div>
+        </div>
+        <div id="running" class="hidden">
+          <div class="status-line">
+            <h2 id="runningTitle">正在检索公开职位</h2>
+            <button class="text-btn" id="stop" type="button">停止</button>
+          </div>
+          <p class="note" id="runningNote">通常需要一两分钟。</p>
+          <ol class="log" id="log"></ol>
+        </div>
+        <div id="result" class="hidden">
+          <div class="result-bar">
+            <div class="tabs" id="tabs">
+              <button class="tab" type="button" data-tab="overview" aria-pressed="true">总览</button>
+              <button class="tab" type="button" data-tab="jobs" aria-pressed="false">职位</button>
+              <button class="tab" type="button" data-tab="plan" aria-pressed="false">计划</button>
+              <button class="tab" type="button" data-tab="draft" aria-pressed="false">草稿</button>
+            </div>
+            <div class="row">
+              <button class="text-btn" id="copyPlan" type="button">复制计划</button>
+              <button class="text-btn" id="exportReport" type="button">导出报告</button>
+            </div>
+          </div>
+          <div data-panel="overview">
+            <div class="hero">
+              <div class="ring" id="ring"><span id="score">0</span></div>
+              <div>
+                <h2 id="headline"></h2>
+                <p class="lede" id="overview"></p>
+                <p class="note" id="successRead"></p>
+              </div>
+            </div>
+            <div class="signals" id="signals"></div>
+            <div class="bands" id="bands"></div>
+            <div class="split">
+              <div class="panel"><h3>简历里能用的</h3><ul id="strengths"></ul></div>
+              <div class="panel"><h3>还缺什么</h3><ul id="gaps"></ul></div>
+            </div>
+          </div>
+          <div data-panel="jobs" class="hidden">
+            <div class="toolbar">
+              <label>关键词<input id="jobQuery" type="search" placeholder="公司、职位或技能" /></label>
+              <label>排序
+                <select id="sort">
+                  <option value="score-desc">匹配从高到低</option>
+                  <option value="score-asc">匹配从低到高</option>
+                  <option value="company">公司名</option>
+                </select>
+              </label>
+              <label>最低 <output id="minLabel">0</output>
+                <input id="minScore" type="range" min="0" max="90" value="0" step="5" />
+              </label>
+            </div>
+            <div class="chips" id="resultTracks"></div>
+            <div class="compare hidden" id="compare"></div>
+            <div id="jobList"></div>
+          </div>
+          <div data-panel="plan" class="hidden">
+            <div class="plan"><h3>准备计划</h3><ol id="plan"></ol></div>
+          </div>
+          <div data-panel="draft" class="hidden">
+            <article class="draft" id="draft">
+              <h3 id="draftSubject"></h3>
+              <pre id="draftBody"></pre>
+              <button class="text-btn" id="copyDraft" type="button">复制草稿</button>
+              <p class="note">这是可以粘贴的草稿，还没有记录，也没有提交。</p>
+            </article>
+            <p class="note" id="prose"></p>
+          </div>
+        </div>
+        <div id="failed" class="hidden">
+          <h2>这次没有完成</h2>
+          <p id="failedText"></p>
+        </div>
+      </section>
+    </div>
+    </section>
+    <section id="view-chat" class="view hidden">
+      <div class="chat-shell">
+        <div class="chat-top">
+          <div>
+            <p class="kicker">Conversation</p>
+            <h2>对话</h2>
+          </div>
+          <button class="text-btn" id="newChat" type="button">新对话</button>
+        </div>
+        <div class="chat-thread" id="chatThread">
+          <div id="chatEmpty">
+            <p class="note">问公开职位、城市范围，或简历该怎么补。对话不会替你提交申请。</p>
+            <div class="suggest" id="suggest"></div>
+          </div>
+        </div>
+        <form class="chat-form" id="chatForm">
+          <textarea id="chatInput" rows="2" placeholder="输入问题。Enter 发送，Shift + Enter 换行。"></textarea>
+          <button class="primary" id="chatSend" type="submit">发送</button>
+        </form>
+      </div>
+    </section>
+  </div>
+  <script>
+    const PRESET = ["北京", "上海", "深圳", "杭州", "广州", "成都", "南京", "武汉", "西安", "苏州", "远程"];
+    const TIER1 = ["北京", "上海", "广州", "深圳"];
+    const TRACKS = [
+      ["computer", "计算机", "软件开发与工程"],
+      ["agent", "Agent 开发", "智能体、工具调用与应用"],
+      ["algorithm", "算法", "机器学习与算法工程"],
+    ];
+    const CHECKS = [
+      ["经历", /经历|工作|任职|公司/],
+      ["项目", /项目/],
+      ["技能", /技能|技术|TypeScript|Python|Java|Go/i],
+      ["学历", /学历|本科|硕士|博士/],
+      ["时间", /20\d{2}/],
+    ];
+    const TRACK_NAME = Object.fromEntries(TRACKS.map(([id, name]) => [id, name]));
+    const HISTORY_KEY = "job-desk-history";
+    const STAR_KEY = "job-desk-stars";
+    const cities = new Set();
+    const tracks = new Set(TRACKS.map(([id]) => id));
+    const resultTrackFilter = new Set(TRACKS.map(([id]) => id));
+    const compare = new Set();
+    let resumeText = "";
+    let listings = [];
+    let lastAnalysis = null;
+    let lastProse = "";
+    let sessionId = "";
+    let streamAbort = null;
+    let stopRequested = false;
+    let clock = 0;
+
+    const citiesEl = document.querySelector("#cities");
+    const tracksEl = document.querySelector("#tracks");
+    const resumeEl = document.querySelector("#resume");
+    const warnEl = document.querySelector("#formWarn");
+    const studioAt = location.pathname.indexOf("/v1/channels/studio");
+    const prefix = studioAt === -1 ? "" : location.pathname.slice(0, studioAt);
+    const SUGGEST = [
+      ["搜索上海的 Agent 岗位", "搜索上海的 Agent 开发岗位。先调用 search_jobs。不要记录投递。"],
+      ["简历该写清哪些项目", "一份 Agent 开发简历通常该写清哪些项目？"],
+      ["匹配分代表什么", "投递台上的匹配分代表什么？"],
+    ];
+    const TOOL_LABEL = {
+      search_jobs: "检索职位",
+      publish_analysis: "整理分析",
+      WebSearch: "网页检索",
+      load_profile: "读取简历",
+      prepare_application: "准备草稿",
+      record_submission: "记录投递",
+      task: "研究员",
+    };
+    let chatSessionId = "";
+    let chatToken = "";
+    let chatIndex = 0;
+    let chatAbort = null;
+    let chatBusy = false;
+
+    function loadList(key) {
+      try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+    }
+    function saveList(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+    function paintCities() {
+      citiesEl.replaceChildren();
+      const all = [...PRESET, ...cities].filter((city, index, list) => list.indexOf(city) === index);
+      for (const city of all) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chip";
+        button.textContent = city;
+        button.setAttribute("aria-pressed", cities.has(city) ? "true" : "false");
+        button.addEventListener("click", () => {
+          if (cities.has(city)) cities.delete(city);
+          else if (cities.size < 8) cities.add(city);
+          else warnEl.textContent = "最多选择 8 个城市。";
+          paintCities();
+        });
+        citiesEl.appendChild(button);
+      }
+      document.querySelector("#cityCount").textContent = cities.size + " / 8";
+    }
+
+    function paintTracks() {
+      tracksEl.replaceChildren();
+      for (const [id, name, hint] of TRACKS) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "track";
+        button.setAttribute("aria-pressed", tracks.has(id) ? "true" : "false");
+        const title = document.createElement("b");
+        title.textContent = name;
+        const small = document.createElement("small");
+        small.textContent = hint;
+        button.append(title, small);
+        button.addEventListener("click", () => {
+          if (tracks.has(id)) tracks.delete(id);
+          else tracks.add(id);
+          paintTracks();
+        });
+        tracksEl.appendChild(button);
+      }
+    }
+
+    function paintChecks() {
+      const text = resumeEl.value;
+      const holder = document.querySelector("#checks");
+      holder.replaceChildren();
+      let hit = 0;
+      for (const [label, pattern] of CHECKS) {
+        const on = pattern.test(text);
+        if (on) hit += 1;
+        const chip = document.createElement("span");
+        chip.className = on ? "check on" : "check";
+        chip.textContent = label;
+        holder.appendChild(chip);
+      }
+      document.querySelector("#meterBar").style.width = (hit / CHECKS.length * 100) + "%";
+    }
+
+    function paintHistory() {
+      const holder = document.querySelector("#history");
+      holder.replaceChildren();
+      for (const item of loadList(HISTORY_KEY)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        const when = new Date(item.at);
+        const stamp = Number.isNaN(when.getTime()) ? "" : (when.getMonth() + 1) + "/" + when.getDate() + " ";
+        button.textContent = stamp + (item.score ?? "-") + " · " + (item.headline || "分析");
+        button.addEventListener("click", () => reopen(item.id));
+        holder.appendChild(button);
+      }
+      document.querySelector("#historyEmpty").classList.toggle("hidden", loadList(HISTORY_KEY).length > 0);
+    }
+
+    function showView(name) {
+      const view = name === "desk" || name === "chat" ? name : "home";
+      for (const key of ["home", "desk", "chat"]) {
+        document.querySelector("#view-" + key).classList.toggle("hidden", key !== view);
+      }
+      for (const button of document.querySelectorAll("#nav [data-view]")) {
+        button.setAttribute("aria-pressed", button.dataset.view === view ? "true" : "false");
+      }
+      const next = location.pathname + location.search + "#" + view;
+      if (location.pathname + location.search + location.hash !== next) history.replaceState(null, "", next);
+      if (view === "chat") document.querySelector("#chatInput").focus();
+    }
+
+    function paintSuggest() {
+      const holder = document.querySelector("#suggest");
+      holder.replaceChildren();
+      for (const [label, text] of SUGGEST) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chip";
+        button.textContent = label;
+        button.title = text;
+        button.addEventListener("click", () => sendChat(text));
+        holder.appendChild(button);
+      }
+    }
+
+    function fillBubble(el, text) {
+      el.replaceChildren();
+      const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+      for (const part of parts) {
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+          const strong = document.createElement("strong");
+          strong.textContent = part.slice(2, -2);
+          el.appendChild(strong);
+        } else el.appendChild(document.createTextNode(part));
+      }
+    }
+
+    function appendBubble(role, text) {
+      document.querySelector("#chatEmpty").classList.add("hidden");
+      const bubble = document.createElement("div");
+      bubble.className = "bubble " + role;
+      fillBubble(bubble, text);
+      document.querySelector("#chatThread").appendChild(bubble);
+      bubble.scrollIntoView({ block: "nearest" });
+      return bubble;
+    }
+
+    function toolChip(bubble, name) {
+      let row = bubble.previousElementSibling;
+      if (!row || !row.classList.contains("chat-tools")) {
+        row = document.createElement("div");
+        row.className = "chat-tools";
+        bubble.before(row);
+      }
+      if ([...row.children].some((node) => node.dataset.tool === name)) return;
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.dataset.tool = name;
+      chip.textContent = TOOL_LABEL[name] || name;
+      row.appendChild(chip);
+    }
+
+    function resetChat() {
+      if (chatAbort) chatAbort.abort();
+      chatSessionId = "";
+      chatToken = "";
+      chatIndex = 0;
+      chatBusy = false;
+      document.querySelector("#chatSend").disabled = false;
+      const empty = document.querySelector("#chatEmpty");
+      document.querySelector("#chatThread").replaceChildren(empty);
+      empty.classList.remove("hidden");
+    }
+
+    async function readChat(id, bubble) {
+      chatAbort = new AbortController();
+      const response = await fetch(prefix + "/v1/session/" + id + "/stream?startIndex=" + chatIndex, { signal: chatAbort.signal });
+      if (!response.ok || !response.body) throw new Error("没有读到回复。");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let stopTimer = 0;
+      const armStop = () => {
+        clearTimeout(stopTimer);
+        stopTimer = setTimeout(() => chatAbort.abort(), 1200);
+      };
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) return;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.trim() === "") continue;
+            let event;
+            try { event = JSON.parse(line); } catch { continue; }
+            if (typeof event.index === "number") chatIndex = event.index + 1;
+            const data = event.data || {};
+            if (data.parentCallId) continue;
+            if ((event.type === "message.appended" || event.type === "message.completed") && data.finishReason !== "tool_call" && data.text) {
+              fillBubble(bubble, data.text);
+            } else if (event.type === "action.result" && data.toolName) {
+              toolChip(bubble, data.toolName);
+            } else if (event.type === "turn.completed" || event.type === "session.completed") {
+              armStop();
+            } else if (event.type === "turn.started") {
+              clearTimeout(stopTimer);
+            } else if (event.type === "turn.failed" || event.type === "session.failed") {
+              throw new Error(data.message || "这一轮没有完成。");
+            }
+          }
+        }
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+        throw error;
+      }
+    }
+
+    async function sendChat(text) {
+      const message = String(text || "").trim();
+      if (message === "" || chatBusy) return;
+      chatBusy = true;
+      document.querySelector("#chatSend").disabled = true;
+      document.querySelector("#chatInput").value = "";
+      appendBubble("user", message);
+      const bubble = appendBubble("assistant", "正在回复…");
+      try {
+        const url = chatSessionId ? prefix + "/v1/session/" + chatSessionId : prefix + "/v1/session";
+        const body = chatSessionId
+          ? { message, continuationToken: chatToken }
+          : { title: "对话 · " + message.slice(0, 24), message };
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.sessionId) {
+          const detail = payload.message || (payload.error && payload.error.message) || "没有发出去。";
+          throw new Error(detail);
+        }
+        chatSessionId = payload.sessionId;
+        if (payload.continuationToken) chatToken = payload.continuationToken;
+        await readChat(chatSessionId, bubble);
+        if (bubble.textContent === "正在回复…") fillBubble(bubble, "这一轮没有形成文字回复。可以换一种问法。");
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+        fillBubble(bubble, error instanceof Error ? error.message : "对话中断了。");
+      } finally {
+        chatBusy = false;
+        document.querySelector("#chatSend").disabled = false;
+      }
+    }
+
+    function addCity() {
+      const input = document.querySelector("#cityInput");
+      const city = input.value.trim();
+      if (city === "") return;
+      if (cities.size >= 8 && !cities.has(city)) {
+        warnEl.textContent = "最多选择 8 个城市。";
+        return;
+      }
+      cities.add(city);
+      input.value = "";
+      warnEl.textContent = "";
+      paintCities();
+    }
+
+    function setResume(text, name) {
+      resumeText = text.replace(/\u0000/g, "").trim().slice(0, 12000);
+      resumeEl.value = resumeText;
+      document.querySelector("#resumeName").textContent = name || "已粘贴简历";
+      document.querySelector("#resumeCount").textContent = resumeText.length + " / 12000";
+      paintChecks();
+    }
+
+    function show(id) {
+      for (const key of ["empty", "running", "result", "failed"]) {
+        document.querySelector("#" + key).classList.toggle("hidden", key !== id);
+      }
+    }
+
+    function showTab(name) {
+      for (const button of document.querySelectorAll(".tab")) {
+        button.setAttribute("aria-pressed", button.dataset.tab === name ? "true" : "false");
+      }
+      for (const panel of document.querySelectorAll("[data-panel]")) {
+        panel.classList.toggle("hidden", panel.dataset.panel !== name);
+      }
+    }
+
+    function tone(score) {
+      if (score >= 75) return "#f3ddaa";
+      if (score >= 55) return "#d4af5f";
+      return "#e7a08a";
+    }
+
+    function safeUrl(value) {
+      try {
+        const url = new URL(value);
+        if (url.protocol === "https:" || url.protocol === "http:") return url.href;
+      } catch { /* ignore bad listing links */ }
+      return "";
+    }
+
+    function validate() {
+      if (cities.size === 0) return "请至少选择一个城市。";
+      if (tracks.size === 0) return "请至少选择一个方向。";
+      const text = resumeEl.value.trim();
+      if (text.length < 40) return "简历太短。请放上经历、项目或技能。";
+      if (text.includes("示例候选人")) return "这还是示例简历。请换成你自己的经历。";
+      return "";
+    }
+
+    function log(text) {
+      const item = document.createElement("li");
+      item.textContent = text;
+      document.querySelector("#log").appendChild(item);
+    }
+
+    function toolLabel(name) {
+      const labels = {
+        search_jobs: "已生成检索式",
+        publish_analysis: "已整理匹配和准备计划",
+        load_profile: "已读取简历",
+        prepare_application: "已调用草稿工具",
+        record_submission: "已尝试记录投递",
+        read: "已查看资料",
+        task: "已交给职位研究员",
+      };
+      if (labels[name]) return labels[name];
+      if (/search|web/i.test(name)) return "正在查看公开页面";
+      return "已调用 " + name;
+    }
+
+    function readOutput(output) {
+      if (output && typeof output === "object") return output;
+      if (typeof output !== "string") return null;
+      try { return JSON.parse(output); } catch { return null; }
+    }
+
+    function remember(analysis) {
+      if (!sessionId) return;
+      const items = loadList(HISTORY_KEY).filter((item) => item.id !== sessionId);
+      items.unshift({
+        id: sessionId,
+        at: new Date().toISOString(),
+        headline: analysis.headline || "分析",
+        score: analysis.fitScore,
+        cities: analysis.cities || [],
+      });
+      saveList(HISTORY_KEY, items.slice(0, 6));
+      paintHistory();
+    }
+
+    function renderAnalysis(analysis, prose) {
+      lastAnalysis = analysis;
+      lastProse = prose || "";
+      const score = Number(analysis.fitScore) || 0;
+      const ring = document.querySelector("#ring");
+      ring.style.setProperty("--p", String(score));
+      ring.style.setProperty("--tone", tone(score));
+      document.querySelector("#score").textContent = String(score);
+      document.querySelector("#headline").textContent = analysis.headline || "匹配估计";
+      document.querySelector("#overview").textContent = analysis.overview || "";
+      const confidence = { low: "低", medium: "中", high: "高" }[analysis.confidence] || "低";
+      document.querySelector("#successRead").textContent =
+        (analysis.successRead || "") + " 把握：" + confidence + "。这不是录取概率。";
+      const signals = document.querySelector("#signals");
+      signals.replaceChildren();
+      for (const label of [
+        "城市 " + (analysis.cities || []).join("、"),
+        "方向 " + (analysis.tracks || []).map((id) => TRACK_NAME[id] || id).join("、"),
+        "公开职位 " + (analysis.listings || []).length + " 条",
+      ]) {
+        const chip = document.createElement("span");
+        chip.textContent = label;
+        signals.appendChild(chip);
+      }
+      const bands = document.querySelector("#bands");
+      bands.replaceChildren();
+      const groups = [
+        ["75 分以上", (analysis.listings || []).filter((item) => Number(item.fitScore) >= 75).length],
+        ["55–74", (analysis.listings || []).filter((item) => Number(item.fitScore) >= 55 && Number(item.fitScore) < 75).length],
+        ["55 分以下", (analysis.listings || []).filter((item) => Number(item.fitScore) < 55).length],
+      ];
+      for (const [label, count] of groups) {
+        const chip = document.createElement("span");
+        chip.className = "band";
+        chip.textContent = label + " · " + count;
+        bands.appendChild(chip);
+      }
+      fillList("#strengths", analysis.strengths, "简历里没有足够的可核验优势。");
+      fillList("#gaps", analysis.gaps, "没有写出明确缺口。");
+      listings = Array.isArray(analysis.listings) ? analysis.listings : [];
+      compare.clear();
+      resultTrackFilter.clear();
+      for (const id of analysis.tracks || []) resultTrackFilter.add(id);
+      if (resultTrackFilter.size === 0) for (const [id] of TRACKS) resultTrackFilter.add(id);
+      paintResultTracks();
+      paintJobs();
+      const plan = document.querySelector("#plan");
+      plan.replaceChildren();
+      for (const item of analysis.plan || []) {
+        const li = document.createElement("li");
+        const title = document.createElement("strong");
+        title.textContent = (item.when || "") + " · " + (item.title || "");
+        li.appendChild(title);
+        const actions = document.createElement("div");
+        actions.textContent = (item.actions || []).join(" ");
+        li.appendChild(actions);
+        plan.appendChild(li);
+      }
+      const draft = document.querySelector("#draft");
+      const body = analysis.draftBody || "";
+      draft.classList.toggle("hidden", body.trim() === "");
+      document.querySelector("#draftSubject").textContent = analysis.draftSubject || "投递草稿";
+      document.querySelector("#draftBody").textContent = body;
+      document.querySelector("#prose").textContent = lastProse;
+      remember(analysis);
+      show("result");
+    }
+
+    function fillList(selector, values, fallback) {
+      const list = document.querySelector(selector);
+      list.replaceChildren();
+      const rows = Array.isArray(values) && values.length > 0 ? values : [fallback];
+      for (const value of rows) {
+        const li = document.createElement("li");
+        li.textContent = value;
+        list.appendChild(li);
+      }
+    }
+
+    function paintResultTracks() {
+      const holder = document.querySelector("#resultTracks");
+      holder.replaceChildren();
+      const present = new Set(listings.map((item) => item.track));
+      for (const [id, name] of TRACKS) {
+        if (!present.has(id)) continue;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chip";
+        button.textContent = name;
+        button.setAttribute("aria-pressed", resultTrackFilter.has(id) ? "true" : "false");
+        button.addEventListener("click", () => {
+          if (resultTrackFilter.has(id)) resultTrackFilter.delete(id);
+          else resultTrackFilter.add(id);
+          paintResultTracks();
+          paintJobs();
+        });
+        holder.appendChild(button);
+      }
+    }
+
+    function paintJobs() {
+      const min = Number(document.querySelector("#minScore").value);
+      document.querySelector("#minLabel").textContent = String(min);
+      const query = document.querySelector("#jobQuery").value.trim().toLowerCase();
+      const sort = document.querySelector("#sort").value;
+      const holder = document.querySelector("#jobList");
+      holder.replaceChildren();
+      const stars = new Set(loadList(STAR_KEY).map((item) => item.url));
+      const rows = listings
+        .filter((item) => resultTrackFilter.has(item.track) && Number(item.fitScore) >= min)
+        .filter((item) => {
+          if (query === "") return true;
+          return [item.title, item.company, item.summary, item.fitReason].join(" ").toLowerCase().includes(query);
+        })
+        .sort((a, b) => {
+          if (sort === "company") return String(a.company || "").localeCompare(String(b.company || ""), "zh");
+          const delta = Number(a.fitScore) - Number(b.fitScore);
+          return sort === "score-asc" ? delta : -delta;
+        });
+      if (rows.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "note";
+        empty.textContent = listings.length === 0 ? "这轮没有留下可展示的公开职位。" : "当前筛选下没有职位。";
+        holder.appendChild(empty);
+      }
+      for (const item of rows) {
+        const href = safeUrl(item.url);
+        const row = document.createElement("article");
+        row.className = "job";
+        const score = document.createElement("div");
+        score.className = "score";
+        score.style.color = tone(Number(item.fitScore) || 0);
+        score.textContent = String(item.fitScore ?? "");
+        const body = document.createElement("div");
+        const title = document.createElement("h4");
+        title.textContent = item.title || "未命名职位";
+        const sub = document.createElement("div");
+        sub.className = "sub";
+        sub.textContent = [item.company, item.location, TRACK_NAME[item.track] || item.track].filter(Boolean).join(" · ");
+        const summary = document.createElement("p");
+        summary.textContent = item.summary || "";
+        const reason = document.createElement("p");
+        reason.textContent = item.fitReason || "";
+        body.append(title, sub, summary, reason);
+        if (href) {
+          const link = document.createElement("a");
+          link.href = href;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "打开公开页面";
+          body.appendChild(link);
+        }
+        if (Array.isArray(item.gaps) && item.gaps.length > 0) {
+          const gaps = document.createElement("p");
+          gaps.className = "note";
+          gaps.textContent = "缺口：" + item.gaps.join("；");
+          body.appendChild(gaps);
+        }
+        const actions = document.createElement("div");
+        actions.className = "job-actions";
+        if (href) {
+          const star = document.createElement("button");
+          star.type = "button";
+          star.className = "text-btn star";
+          star.textContent = stars.has(href) ? "已收藏" : "收藏";
+          star.setAttribute("aria-pressed", stars.has(href) ? "true" : "false");
+          star.addEventListener("click", () => toggleStar(item, href));
+          const box = document.createElement("label");
+          box.className = "note";
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.checked = compare.has(href);
+          input.addEventListener("change", () => {
+            if (input.checked && compare.size >= 3) {
+              input.checked = false;
+              warnEl.textContent = "最多对比 3 条职位。";
+              return;
+            }
+            if (input.checked) compare.add(href);
+            else compare.delete(href);
+            paintCompare();
+          });
+          box.append(input, document.createTextNode(" 加入对比"));
+          actions.append(star, box);
+        }
+        body.appendChild(actions);
+        row.append(score, body);
+        holder.appendChild(row);
+      }
+      paintCompare();
+    }
+
+    function toggleStar(item, href) {
+      const stars = loadList(STAR_KEY).filter((saved) => saved.url !== href);
+      const exists = loadList(STAR_KEY).some((saved) => saved.url === href);
+      if (!exists) {
+        stars.unshift({ url: href, title: item.title, company: item.company, score: item.fitScore });
+      }
+      saveList(STAR_KEY, stars.slice(0, 30));
+      paintJobs();
+    }
+
+    function paintCompare() {
+      const holder = document.querySelector("#compare");
+      const chosen = listings.filter((item) => compare.has(safeUrl(item.url)));
+      holder.classList.toggle("hidden", chosen.length < 2);
+      holder.replaceChildren();
+      if (chosen.length < 2) return;
+      const table = document.createElement("table");
+      const head = document.createElement("tr");
+      for (const label of ["职位", "匹配", "缺口"]) {
+        const cell = document.createElement("th");
+        cell.textContent = label;
+        head.appendChild(cell);
+      }
+      table.appendChild(head);
+      for (const item of chosen) {
+        const row = document.createElement("tr");
+        for (const value of [
+          (item.company || "") + " · " + (item.title || ""),
+          String(item.fitScore ?? ""),
+          (item.gaps || []).join("；"),
+        ]) {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        table.appendChild(row);
+      }
+      const title = document.createElement("h3");
+      title.textContent = "对比";
+      holder.append(title, table);
+    }
+
+    function reportText() {
+      const analysis = lastAnalysis;
+      if (!analysis) return "";
+      const lines = [
+        "# " + (analysis.headline || "投递台报告"),
+        "",
+        "匹配估计：" + analysis.fitScore + "。这不是录取概率。",
+        "",
+        analysis.overview || "",
+        "",
+        analysis.successRead || "",
+        "",
+        "## 能用的经历",
+        ...(analysis.strengths || []).map((item) => "- " + item),
+        "",
+        "## 缺口",
+        ...(analysis.gaps || []).map((item) => "- " + item),
+        "",
+        "## 职位",
+      ];
+      for (const item of analysis.listings || []) {
+        lines.push("### " + item.fitScore + " " + item.title, item.company + " · " + item.location, item.summary || "", item.url || "", "");
+      }
+      lines.push("## 准备计划");
+      for (const item of analysis.plan || []) {
+        lines.push("### " + item.when + " " + item.title, ...(item.actions || []).map((action) => "- " + action), "");
+      }
+      if (analysis.draftBody) lines.push("## 草稿", analysis.draftSubject || "", "", analysis.draftBody);
+      if (lastProse) lines.push("", "## 摘要", lastProse);
+      return lines.join("\n");
+    }
+
+    function planText() {
+      if (!lastAnalysis) return "";
+      return (lastAnalysis.plan || []).map((item) => item.when + " · " + item.title + "\n" + (item.actions || []).join("\n")).join("\n\n");
+    }
+
+    async function start(event) {
+      event.preventDefault();
+      const problem = validate();
+      warnEl.textContent = problem;
+      if (problem) return;
+      resumeText = resumeEl.value.trim().slice(0, 12000);
+      const chosenTracks = [...tracks];
+      const message = [
+        "【投递台】",
+        "城市：" + [...cities].join("、"),
+        "方向：" + chosenTracks.map((id) => id + "（" + TRACK_NAME[id] + "）").join("、"),
+        "条数上限：" + document.querySelector("#limit").value,
+        "简历字数：" + resumeText.length,
+        "",
+        "工作区 resume.md 是用户刚刚提交的简历。请按投递台规则检索公开职位，并调用 publish_analysis。不要记录投递。",
+      ].join("\n");
+      stopRequested = false;
+      document.querySelector("#go").disabled = true;
+      document.querySelector("#log").replaceChildren();
+      document.querySelector("#runningTitle").textContent = "正在检索公开职位";
+      show("running");
+      beginClock();
+      log("已提交城市、方向和简历。");
+      try {
+        const response = await fetch(prefix + "/v1/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: "投递台 · " + [...cities].join("、"),
+            message,
+            workspaceFiles: { "resume.md": resumeText },
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.sessionId) throw new Error(payload.message || "没有开始会话。");
+        sessionId = payload.sessionId;
+        await readStream(sessionId);
+      } catch (error) {
+        if (stopRequested || (error && error.name === "AbortError")) return;
+        document.querySelector("#failedText").textContent = error instanceof Error ? error.message : "分析没有完成。";
+        show("failed");
+      } finally {
+        document.querySelector("#go").disabled = false;
+        clearInterval(clock);
+      }
+    }
+
+    async function reopen(id) {
+      showView("desk");
+      stopRequested = false;
+      sessionId = id;
+      document.querySelector("#log").replaceChildren();
+      document.querySelector("#runningTitle").textContent = "正在打开这次分析";
+      show("running");
+      log("正在读取已完成的分析。");
+      try { await readStream(id); }
+      catch (error) {
+        document.querySelector("#failedText").textContent = error instanceof Error ? error.message : "没有打开这次分析。";
+        show("failed");
+      }
+    }
+
+    function beginClock() {
+      const started = Date.now();
+      clearInterval(clock);
+      clock = setInterval(() => {
+        const seconds = Math.round((Date.now() - started) / 1000);
+        document.querySelector("#runningNote").textContent = "已进行 " + seconds + " 秒。公开检索通常要一两分钟。";
+      }, 1000);
+    }
+
+    async function readStream(id) {
+      streamAbort = new AbortController();
+      const response = await fetch(prefix + "/v1/session/" + id + "/stream?startIndex=0", { signal: streamAbort.signal });
+      if (!response.ok || !response.body) throw new Error("无法读取分析进度。");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let analysis = null;
+      let prose = "";
+      let stopTimer = 0;
+      let closed = false;
+      const finish = () => {
+        if (closed || stopRequested) return;
+        closed = true;
+        if (analysis) renderAnalysis(analysis, prose);
+        else if (prose) {
+          document.querySelector("#failedText").textContent = prose;
+          show("failed");
+        } else {
+          document.querySelector("#failedText").textContent = "这轮结束了，但没有形成可展示的分析结果。";
+          show("failed");
+        }
+      };
+      const armStop = () => {
+        clearTimeout(stopTimer);
+        stopTimer = setTimeout(() => streamAbort.abort(), 2500);
+      };
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) { finish(); return; }
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.trim() === "") continue;
+            let event;
+            try { event = JSON.parse(line); } catch { continue; }
+            if (event.type === "action.result" && event.data && event.data.isError !== true) {
+              log(toolLabel(event.data.toolName));
+              const parsed = readOutput(event.data.output);
+              if (event.data.toolName === "publish_analysis" && parsed && parsed.ok === true) {
+                analysis = parsed;
+                renderAnalysis(analysis, prose);
+              }
+            }
+            if (event.type === "message.completed" && event.data && event.data.finishReason === "stop") {
+              prose = event.data.text || prose;
+            }
+            if (event.type === "turn.failed" || event.type === "session.failed") {
+              throw new Error((event.data && event.data.message) || "分析中断了。");
+            }
+            if (event.type === "turn.completed" || event.type === "session.completed") armStop();
+            if (event.type === "turn.started") clearTimeout(stopTimer);
+          }
+        }
+      } catch (error) {
+        if (error && error.name === "AbortError") { finish(); return; }
+        throw error;
+      }
+    }
+
+    document.querySelector("#addCity").addEventListener("click", addCity);
+    document.querySelector("#cityInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); addCity(); }
+    });
+    document.querySelector("#tier1").addEventListener("click", () => {
+      for (const city of TIER1) if (cities.size < 8) cities.add(city);
+      paintCities();
+    });
+    document.querySelector("#clearCities").addEventListener("click", () => { cities.clear(); paintCities(); });
+    document.querySelector("#clearResume").addEventListener("click", () => setResume("", "尚未放入简历"));
+    resumeEl.addEventListener("input", () => {
+      resumeText = resumeEl.value.trim().slice(0, 12000);
+      document.querySelector("#resumeCount").textContent = resumeText.length + " / 12000";
+      if (resumeText !== "" && document.querySelector("#resumeName").textContent === "尚未放入简历") {
+        document.querySelector("#resumeName").textContent = "已粘贴简历";
+      }
+      paintChecks();
+    });
+    document.querySelector("#file").addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      warnEl.textContent = "";
+      const name = file.name.toLowerCase();
+      if (!/\.(txt|md|markdown)$/.test(name)) {
+        warnEl.textContent = "请上传 .txt 或 .md，或直接粘贴正文。";
+        return;
+      }
+      setResume(await file.text(), file.name);
+    });
+    const drop = document.querySelector("#drop");
+    drop.addEventListener("dragover", (event) => { event.preventDefault(); drop.classList.add("over"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+    drop.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      drop.classList.remove("over");
+      const file = event.dataTransfer && event.dataTransfer.files[0];
+      if (!file) return;
+      const name = file.name.toLowerCase();
+      if (!/\.(txt|md|markdown)$/.test(name)) {
+        warnEl.textContent = "请上传 .txt 或 .md，或直接粘贴正文。";
+        return;
+      }
+      setResume(await file.text(), file.name);
+    });
+    document.querySelector("#desk").addEventListener("submit", start);
+    document.querySelector("#stop").addEventListener("click", async () => {
+      stopRequested = true;
+      clearInterval(clock);
+      if (streamAbort) streamAbort.abort();
+      if (sessionId) await fetch(prefix + "/v1/session/" + sessionId + "/stop", { method: "POST" }).catch(() => {});
+      document.querySelector("#failedText").textContent = "已停止。可以改条件后再分析。";
+      show("failed");
+    });
+    document.querySelector("#minScore").addEventListener("input", paintJobs);
+    document.querySelector("#jobQuery").addEventListener("input", paintJobs);
+    document.querySelector("#sort").addEventListener("change", paintJobs);
+    document.querySelector("#tabs").addEventListener("click", (event) => {
+      const button = event.target.closest(".tab");
+      if (button) showTab(button.dataset.tab);
+    });
+    document.querySelector("#copyDraft").addEventListener("click", async () => {
+      const text = document.querySelector("#draftSubject").textContent + "\n\n" + document.querySelector("#draftBody").textContent;
+      await navigator.clipboard.writeText(text);
+      document.querySelector("#copyDraft").textContent = "已复制";
+    });
+    document.querySelector("#copyPlan").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(planText());
+      document.querySelector("#copyPlan").textContent = "已复制";
+    });
+    document.querySelector("#exportReport").addEventListener("click", () => {
+      const blob = new Blob([reportText()], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "投递台报告.md";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-view]");
+      if (!button || !button.closest("#nav, #view-home")) return;
+      showView(button.dataset.view);
+    });
+    document.querySelector("#newChat").addEventListener("click", resetChat);
+    document.querySelector("#chatForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendChat(document.querySelector("#chatInput").value);
+    });
+    document.querySelector("#chatInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendChat(document.querySelector("#chatInput").value);
+      }
+    });
+
+    paintCities();
+    paintTracks();
+    paintChecks();
+    paintHistory();
+    paintSuggest();
+    showView(location.hash === "#desk" || location.hash === "#chat" ? location.hash.slice(1) : "home");
+  </script>
+</body>
+</html>
