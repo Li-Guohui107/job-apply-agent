@@ -1,5 +1,9 @@
-node_modules
 .env
 .env.local
+data/runtime/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules
 .agent-serve
 memory

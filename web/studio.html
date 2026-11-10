@@ -333,7 +333,8 @@
               <h3 id="draftSubject"></h3>
               <pre id="draftBody"></pre>
               <button class="text-btn" id="copyDraft" type="button">复制草稿</button>
-              <p class="note">这是可以粘贴的草稿，还没有记录，也没有提交。</p>
+              <button class="text-btn" id="recordDraft" type="button">确认后记到本地</button>
+              <p class="note" id="recordStatus">确认后只写入本机记录，不会提交到招聘网站。</p>
             </article>
             <p class="note" id="prose"></p>
           </div>
@@ -402,10 +403,8 @@
     const tracksEl = document.querySelector("#tracks");
     const resumeEl = document.querySelector("#resume");
     const warnEl = document.querySelector("#formWarn");
-    const studioAt = location.pathname.indexOf("/v1/channels/studio");
-    const prefix = studioAt === -1 ? "" : location.pathname.slice(0, studioAt);
     const SUGGEST = [
-      ["搜索上海的 Agent 岗位", "搜索上海的 Agent 开发岗位。先调用 search_jobs。不要记录投递。"],
+      ["搜索上海的 Agent 岗位", "搜索上海的 Agent 开发岗位。不要记录投递。"],
       ["简历该写清哪些项目", "一份 Agent 开发简历通常该写清哪些项目？"],
       ["匹配分代表什么", "投递台上的匹配分代表什么？"],
     ];
@@ -418,9 +417,7 @@
       record_submission: "记录投递",
       task: "研究员",
     };
-    let chatSessionId = "";
-    let chatToken = "";
-    let chatIndex = 0;
+    let chatHistory = [];
     let chatAbort = null;
     let chatBusy = false;
 
@@ -567,59 +564,12 @@
 
     function resetChat() {
       if (chatAbort) chatAbort.abort();
-      chatSessionId = "";
-      chatToken = "";
-      chatIndex = 0;
+      chatHistory = [];
       chatBusy = false;
       document.querySelector("#chatSend").disabled = false;
       const empty = document.querySelector("#chatEmpty");
       document.querySelector("#chatThread").replaceChildren(empty);
       empty.classList.remove("hidden");
-    }
-
-    async function readChat(id, bubble) {
-      chatAbort = new AbortController();
-      const response = await fetch(prefix + "/v1/session/" + id + "/stream?startIndex=" + chatIndex, { signal: chatAbort.signal });
-      if (!response.ok || !response.body) throw new Error("没有读到回复。");
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let stopTimer = 0;
-      const armStop = () => {
-        clearTimeout(stopTimer);
-        stopTimer = setTimeout(() => chatAbort.abort(), 1200);
-      };
-      try {
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) return;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.trim() === "") continue;
-            let event;
-            try { event = JSON.parse(line); } catch { continue; }
-            if (typeof event.index === "number") chatIndex = event.index + 1;
-            const data = event.data || {};
-            if (data.parentCallId) continue;
-            if ((event.type === "message.appended" || event.type === "message.completed") && data.finishReason !== "tool_call" && data.text) {
-              fillBubble(bubble, data.text);
-            } else if (event.type === "action.result" && data.toolName) {
-              toolChip(bubble, data.toolName);
-            } else if (event.type === "turn.completed" || event.type === "session.completed") {
-              armStop();
-            } else if (event.type === "turn.started") {
-              clearTimeout(stopTimer);
-            } else if (event.type === "turn.failed" || event.type === "session.failed") {
-              throw new Error(data.message || "这一轮没有完成。");
-            }
-          }
-        }
-      } catch (error) {
-        if (error && error.name === "AbortError") return;
-        throw error;
-      }
     }
 
     async function sendChat(text) {
@@ -630,25 +580,22 @@
       document.querySelector("#chatInput").value = "";
       appendBubble("user", message);
       const bubble = appendBubble("assistant", "正在回复…");
+      chatAbort = new AbortController();
       try {
-        const url = chatSessionId ? prefix + "/v1/session/" + chatSessionId : prefix + "/v1/session";
-        const body = chatSessionId
-          ? { message, continuationToken: chatToken }
-          : { title: "对话 · " + message.slice(0, 24), message };
-        const response = await fetch(url, {
+        const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ message, history: chatHistory }),
+          signal: chatAbort.signal,
         });
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.sessionId) {
-          const detail = payload.message || (payload.error && payload.error.message) || "没有发出去。";
-          throw new Error(detail);
+        if (!response.ok || !payload.text) {
+          throw new Error(payload.message || "没有发出去。");
         }
-        chatSessionId = payload.sessionId;
-        if (payload.continuationToken) chatToken = payload.continuationToken;
-        await readChat(chatSessionId, bubble);
-        if (bubble.textContent === "正在回复…") fillBubble(bubble, "这一轮没有形成文字回复。可以换一种问法。");
+        if (payload.searched) toolChip(bubble, "search_jobs");
+        fillBubble(bubble, payload.text);
+        chatHistory.push({ role: "user", content: message }, { role: "assistant", content: payload.text });
+        chatHistory = chatHistory.slice(-8);
       } catch (error) {
         if (error && error.name === "AbortError") return;
         fillBubble(bubble, error instanceof Error ? error.message : "对话中断了。");
@@ -823,6 +770,7 @@
       document.querySelector("#draftSubject").textContent = analysis.draftSubject || "投递草稿";
       document.querySelector("#draftBody").textContent = body;
       document.querySelector("#prose").textContent = lastProse;
+      document.querySelector("#recordStatus").textContent = "确认后只写入本机记录，不会提交到招聘网站。";
       remember(analysis);
       show("result");
     }
@@ -1036,16 +984,6 @@
       warnEl.textContent = problem;
       if (problem) return;
       resumeText = resumeEl.value.trim().slice(0, 12000);
-      const chosenTracks = [...tracks];
-      const message = [
-        "【投递台】",
-        "城市：" + [...cities].join("、"),
-        "方向：" + chosenTracks.map((id) => id + "（" + TRACK_NAME[id] + "）").join("、"),
-        "条数上限：" + document.querySelector("#limit").value,
-        "简历字数：" + resumeText.length,
-        "",
-        "工作区 resume.md 是用户刚刚提交的简历。请按投递台规则检索公开职位，并调用 publish_analysis。不要记录投递。",
-      ].join("\n");
       stopRequested = false;
       document.querySelector("#go").disabled = true;
       document.querySelector("#log").replaceChildren();
@@ -1053,20 +991,24 @@
       show("running");
       beginClock();
       log("已提交城市、方向和简历。");
+      log("正在检索公开页面并生成匹配估计。");
+      streamAbort = new AbortController();
       try {
-        const response = await fetch(prefix + "/v1/session", {
+        const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "content-type": "application/json" },
+          signal: streamAbort.signal,
           body: JSON.stringify({
-            title: "投递台 · " + [...cities].join("、"),
-            message,
-            workspaceFiles: { "resume.md": resumeText },
+            cities: [...cities],
+            tracks: [...tracks],
+            limit: Number(document.querySelector("#limit").value),
+            resume: resumeText,
           }),
         });
-        const payload = await response.json();
-        if (!response.ok || !payload.sessionId) throw new Error(payload.message || "没有开始会话。");
-        sessionId = payload.sessionId;
-        await readStream(sessionId);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.analysis) throw new Error(payload.message || "分析没有完成。");
+        sessionId = payload.id || "";
+        renderAnalysis(payload.analysis, payload.prose || "");
       } catch (error) {
         if (stopRequested || (error && error.name === "AbortError")) return;
         document.querySelector("#failedText").textContent = error instanceof Error ? error.message : "分析没有完成。";
@@ -1085,11 +1027,42 @@
       document.querySelector("#runningTitle").textContent = "正在打开这次分析";
       show("running");
       log("正在读取已完成的分析。");
-      try { await readStream(id); }
-      catch (error) {
+      try {
+        const response = await fetch("/api/analyses/" + encodeURIComponent(id));
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.analysis) throw new Error(payload.message || "没有打开这次分析。");
+        renderAnalysis(payload.analysis, payload.prose || "");
+      } catch (error) {
         document.querySelector("#failedText").textContent = error instanceof Error ? error.message : "没有打开这次分析。";
         show("failed");
       }
+    }
+
+    async function recordDraft() {
+      const status = document.querySelector("#recordStatus");
+      const listing = (lastAnalysis && lastAnalysis.listings || []).find((item) => item.url === lastAnalysis.draftUrl) || (lastAnalysis && lastAnalysis.listings || [])[0];
+      const body = lastAnalysis && lastAnalysis.draftBody ? lastAnalysis.draftBody.trim() : "";
+      if (!lastAnalysis || body === "" || !listing || !safeUrl(listing.url)) {
+        status.textContent = "还没有可以记录的草稿。";
+        return;
+      }
+      const response = await fetch("/api/submissions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          confirmed: true,
+          jobKey: listing.company + " " + listing.title,
+          title: listing.title,
+          company: listing.company,
+          location: listing.location,
+          url: listing.url,
+          packet: (lastAnalysis.draftSubject || "") + "\n\n" + body,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (payload.recorded) status.textContent = "已记到本机。同一职位不会重复写入，也没有提交到招聘网站。";
+      else if (payload.duplicate) status.textContent = "这份职位已经记过，没有覆盖。";
+      else status.textContent = "没有写入。请确认草稿和公开链接都还在。";
     }
 
     function beginClock() {
@@ -1099,68 +1072,6 @@
         const seconds = Math.round((Date.now() - started) / 1000);
         document.querySelector("#runningNote").textContent = "已进行 " + seconds + " 秒。公开检索通常要一两分钟。";
       }, 1000);
-    }
-
-    async function readStream(id) {
-      streamAbort = new AbortController();
-      const response = await fetch(prefix + "/v1/session/" + id + "/stream?startIndex=0", { signal: streamAbort.signal });
-      if (!response.ok || !response.body) throw new Error("无法读取分析进度。");
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let analysis = null;
-      let prose = "";
-      let stopTimer = 0;
-      let closed = false;
-      const finish = () => {
-        if (closed || stopRequested) return;
-        closed = true;
-        if (analysis) renderAnalysis(analysis, prose);
-        else if (prose) {
-          document.querySelector("#failedText").textContent = prose;
-          show("failed");
-        } else {
-          document.querySelector("#failedText").textContent = "这轮结束了，但没有形成可展示的分析结果。";
-          show("failed");
-        }
-      };
-      const armStop = () => {
-        clearTimeout(stopTimer);
-        stopTimer = setTimeout(() => streamAbort.abort(), 2500);
-      };
-      try {
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) { finish(); return; }
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.trim() === "") continue;
-            let event;
-            try { event = JSON.parse(line); } catch { continue; }
-            if (event.type === "action.result" && event.data && event.data.isError !== true) {
-              log(toolLabel(event.data.toolName));
-              const parsed = readOutput(event.data.output);
-              if (event.data.toolName === "publish_analysis" && parsed && parsed.ok === true) {
-                analysis = parsed;
-                renderAnalysis(analysis, prose);
-              }
-            }
-            if (event.type === "message.completed" && event.data && event.data.finishReason === "stop") {
-              prose = event.data.text || prose;
-            }
-            if (event.type === "turn.failed" || event.type === "session.failed") {
-              throw new Error((event.data && event.data.message) || "分析中断了。");
-            }
-            if (event.type === "turn.completed" || event.type === "session.completed") armStop();
-            if (event.type === "turn.started") clearTimeout(stopTimer);
-          }
-        }
-      } catch (error) {
-        if (error && error.name === "AbortError") { finish(); return; }
-        throw error;
-      }
     }
 
     document.querySelector("#addCity").addEventListener("click", addCity);
@@ -1212,7 +1123,6 @@
       stopRequested = true;
       clearInterval(clock);
       if (streamAbort) streamAbort.abort();
-      if (sessionId) await fetch(prefix + "/v1/session/" + sessionId + "/stop", { method: "POST" }).catch(() => {});
       document.querySelector("#failedText").textContent = "已停止。可以改条件后再分析。";
       show("failed");
     });
@@ -1223,6 +1133,7 @@
       const button = event.target.closest(".tab");
       if (button) showTab(button.dataset.tab);
     });
+    document.querySelector("#recordDraft").addEventListener("click", recordDraft);
     document.querySelector("#copyDraft").addEventListener("click", async () => {
       const text = document.querySelector("#draftSubject").textContent + "\n\n" + document.querySelector("#draftBody").textContent;
       await navigator.clipboard.writeText(text);
