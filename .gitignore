@@ -1,3 +1,4 @@
+# 钥匙、本机运行记录和缓存不进入仓库。
 .env
 .env.local
 data/runtime/
