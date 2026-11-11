@@ -2,6 +2,8 @@
 
 This repository is a local Python service. The browser page lives in `web/studio.html`. Python under `app/` owns search, the DeepSeek call, and the local record gate.
 
+Folder notes: `app/README.md`, `web/README.md`, `data/README.md`, `tests/README.md`.
+
 ## Run
 
 ```bash
