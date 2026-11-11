@@ -73,7 +73,7 @@ flowchart TD
 
 ```text
 job-apply-agent/
-├── app/
+├── app/                     # 服务端，说明见 app/README.md
 │   ├── __main__.py          # python -m app
 │   ├── server.py            # 本机 HTTP 服务
 │   ├── search.py            # 检索式、公开结果解析
@@ -82,9 +82,9 @@ job-apply-agent/
 │   ├── llm.py               # DeepSeek 调用
 │   ├── store.py             # 分析记录和投递记录
 │   └── config.py            # 路径和 .env 读取
-├── web/studio.html          # 首页、投递台、对话
-├── data/resume.md           # 示例简历，正文含「示例候选人」
-├── tests/test_core.py
+├── web/                     # 黑金界面，说明见 web/README.md
+├── data/                    # 示例简历，说明见 data/README.md
+├── tests/                   # 本地检查，说明见 tests/README.md
 ├── .env.example
 ├── .gitignore
 └── AGENTS.md
